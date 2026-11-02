@@ -9,14 +9,16 @@ The vehicle simulation code is separated from the Minecraft instance, which grea
 
 This fork tracks upstream's `stonecutter` branch (4.1.0 beta), which builds for **NeoForge 1.21.1** (and NeoForge 1.21.4, Fabric 1.21.1 and 1.21.4). For a NeoForge 1.21.1 server, build the `1.21.1-neoforge` project; see [docs/BUILD.md](docs/BUILD.md).
 
-Ticket machines no longer take emeralds. Fares are paid from a **transit card** that players load with Euro from the [Euro Economy](https://github.com/Dyplay/money-mod-v2) bank (its NeoForge 1.21.1 `neoforge-mod`):
+Ticket machines no longer take emeralds. Fares are paid from a **transit card** that players load with Euro from the [Euro Economy](https://github.com/Dyplay/money-mod-v2) bank (its NeoForge 1.21.1 `neoforge-mod`, which needs API version 2 or later):
 
-- **Ticket machine:** shows the card and bank balances. Its buttons load €1 to €500 from the bank onto the card, and the last one pays what is left on the card back into the bank. The screen updates with the settled balances after each payment.
-- **Ticket barriers and processors:** work as before, charging the card in Euro. Entering needs a card balance of €0 or more; a journey the card cannot cover leaves it negative until it is topped up.
-- **Fares** are set in `config/mtr.json` under `server`, in Euro cents: `baseFareCents` (default `200`, €2), `zoneFareCents` per zone crossed (default `100`, €1) and `fareEvasionFineCents` (default `50000`, €500). Creative-mode players pay half.
-- The card balance is kept in the scoreboard objective `mtr_card_cents`. Old emerald-bought balances (`mtr_balance`) are not carried over, since they were never paid for in Euro.
+- **Ticket machine:** opens with the card balance and fills in the bank balance when the bank answers. Its buttons load €1 to €500 from the bank onto the card, and the last one pays what is left on the card back into the bank. A card holds at most €10,000,000.
+- **Ticket barriers and processors:** work as before, charging the card in Euro. Entering needs a card balance of €0 or more; a journey the card cannot cover leaves it negative until it is topped up. The fare evasion fine is charged at most once every 30 seconds, so standing in an exit barrier does not keep fining.
+- **Fares** are set in `config/mtr.json` under `server`, in Euro cents: `baseFareCents` (default `200`, €2), `zoneFareCents` per zone crossed (default `100`, €1) and `fareEvasionFineCents` (default `50000`, €500). Creative-mode players pay half. Station zones count up to ±1,000,000, so no zone numbers can make a fare negative or overflow.
+- **Without the bank** (singleplayer, Fabric, or the mod not installed) nobody can load a card, so barriers let everyone through without charging.
 
-MTR finds the economy at runtime (`org.mtr.data.EuroEconomyBridge`, by reflection on `com.dyplay.euroeconomy.neoforge.api.EuroEconomyApi`), so it still loads without it; ticket machines then say the bank is unavailable. The economy only runs on a dedicated NeoForge server, so in singleplayer and on Fabric the ticket machines are unavailable too. Top-ups and refunds are filed in the Euro Economy ledger as `TRANSIT_CARD_TOPUP` and `TRANSIT_CARD_REFUND`.
+Card money is real money, so it is not kept on the scoreboard. Each world keeps its cards in `mtr/transit_cards.txt` (inside the world folder), keyed by player UUID, written on every change. Every top-up and refund gets a unique reference and is recorded there as pending before the bank is asked. It is settled only on a definite answer from the bank; when the outcome is unknown (a timeout, a lost connection, the server stopping mid-request) it stays pending and is sent again with the same reference every 30 seconds, across restarts too. The bank applies a reference at most once, so a payment never goes through twice. A player can have one payment pending at a time. Old emerald-bought balances (`mtr_balance`) are not carried over, since they were never paid for in Euro.
+
+MTR finds the economy at runtime (`org.mtr.data.EuroEconomyBridge`, by reflection on `com.dyplay.euroeconomy.neoforge.api.EuroEconomyApi`), so it still loads without it. Top-ups and refunds are filed in the Euro Economy ledger as `TRANSIT_CARD_TOPUP` and `TRANSIT_CARD_REFUND`.
 
 ## Major Features in 4.0.0
 

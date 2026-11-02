@@ -90,11 +90,11 @@ public final class ClientPacketHelper {
 	 *
 	 * @param refreshOnly only update a ticket machine screen that is already open
 	 */
-	public static void openTicketMachineScreen(int cardBalance, boolean bankAvailable, int bankBalance, String bankError, boolean refreshOnly) {
+	public static void openTicketMachineScreen(int cardBalance, int bankState, int bankBalance, String bankError, boolean paymentPending, boolean refreshOnly) {
 		if (Minecraft.getInstance().screen instanceof TicketMachineScreen ticketMachineScreen) {
-			ticketMachineScreen.setBalances(cardBalance, bankAvailable, bankBalance, bankError);
+			ticketMachineScreen.setState(cardBalance, bankState, bankBalance, bankError, paymentPending);
 		} else if (!refreshOnly) {
-			openScreen(new TicketMachineScreen(cardBalance, bankAvailable, bankBalance, bankError), screen -> screen instanceof TicketMachineScreen);
+			openScreen(new TicketMachineScreen(cardBalance, bankState, bankBalance, bankError, paymentPending), screen -> screen instanceof TicketMachineScreen);
 		}
 	}
 

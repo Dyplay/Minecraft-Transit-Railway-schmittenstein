@@ -3,6 +3,7 @@ package org.mtr.data;
 import org.jspecify.annotations.Nullable;
 import org.mtr.MTR;
 
+import java.io.UncheckedIOException;
 import java.lang.reflect.Method;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
@@ -21,10 +22,18 @@ import java.util.concurrent.ExecutionException;
  * <p>
  * Amounts are cents (EUR 1.00 = 100). The futures complete on the economy's worker threads, never the server thread -
  * callers hop back with {@code MinecraftServer#execute} before touching the world.
+ * <p>
+ * A failed payment is either a definite refusal (nothing moved) or has an unknown outcome ({@link #isOutcomeUnknown}):
+ * the bank may or may not have moved the money, and the payment must be retried with the same reference until the bank
+ * gives a definite answer. {@link TransitCardPayments} does that.
  */
 public final class EuroEconomyBridge {
 
 	public static final String NOT_INSTALLED = "Euro Economy is not installed";
+	/**
+	 * Shown when {@link #isAvailable()} is false: not installed, or installed but not running (singleplayer).
+	 */
+	public static final String NOT_AVAILABLE = "The Euro Economy bank is not available";
 	/**
 	 * Ledger entries the economy backend files ticket machine payments under (its {@code MOD_CHARGE_TYPES} and
 	 * {@code MOD_CREDIT_TYPES}). An older backend ignores them and files plain admin removals and grants.
@@ -33,7 +42,10 @@ public final class EuroEconomyBridge {
 	public static final String LEDGER_TYPE_REFUND = "TRANSIT_CARD_REFUND";
 
 	private static final String API_CLASS = "com.dyplay.euroeconomy.neoforge.api.EuroEconomyApi";
-	private static final int REQUIRED_API_VERSION = 1;
+	/**
+	 * 2: payments carry a reference and report unknown outcomes.
+	 */
+	private static final int REQUIRED_API_VERSION = 2;
 
 	private static boolean resolved;
 	@Nullable
@@ -68,20 +80,32 @@ public final class EuroEconomyBridge {
 	}
 
 	/**
-	 * Take {@code cents} from the player's bank account. Fails, taking nothing, if they cannot afford it. Completes
+	 * Take {@code cents} from the player's bank account. Refused, taking nothing, if they cannot afford it. Completes
 	 * with what is left in the account.
+	 *
+	 * @param reference unique per payment; the bank applies it at most once, so a retry with it is safe
 	 */
-	public static CompletableFuture<Integer> withdraw(UUID player, int cents, String ledgerType, String reason) {
+	public static CompletableFuture<Integer> withdraw(UUID player, int cents, String ledgerType, String reason, String reference) {
 		final Api resolvedApi = getApi();
-		return resolvedApi == null ? notInstalled() : call(resolvedApi.withdraw, player, cents, ledgerType, reason);
+		return resolvedApi == null ? notInstalled() : call(resolvedApi.withdraw, player, cents, ledgerType, reason, reference);
 	}
 
 	/**
 	 * Pay {@code cents} into the player's bank account. Completes with the new balance.
+	 *
+	 * @param reference unique per payment; the bank applies it at most once, so a retry with it is safe
 	 */
-	public static CompletableFuture<Integer> deposit(UUID player, int cents, String ledgerType, String reason) {
+	public static CompletableFuture<Integer> deposit(UUID player, int cents, String ledgerType, String reason, String reference) {
 		final Api resolvedApi = getApi();
-		return resolvedApi == null ? notInstalled() : call(resolvedApi.deposit, player, cents, ledgerType, reason);
+		return resolvedApi == null ? notInstalled() : call(resolvedApi.deposit, player, cents, ledgerType, reason, reference);
+	}
+
+	/**
+	 * Whether a failed payment future has an unknown outcome - timeout, lost connection, server error - rather than a
+	 * definite refusal. The money may or may not have moved; retry with the same reference to find out.
+	 */
+	public static boolean isOutcomeUnknown(Throwable throwable) {
+		return unwrap(throwable) instanceof UncheckedIOException;
 	}
 
 	/**
@@ -100,11 +124,16 @@ public final class EuroEconomyBridge {
 	 * The message to show a player for a failed payment future.
 	 */
 	public static String getErrorMessage(Throwable throwable) {
+		final Throwable cause = unwrap(throwable);
+		return cause.getMessage() == null ? cause.getClass().getSimpleName() : cause.getMessage();
+	}
+
+	private static Throwable unwrap(Throwable throwable) {
 		Throwable cause = throwable;
 		while ((cause instanceof CompletionException || cause instanceof ExecutionException) && cause.getCause() != null) {
 			cause = cause.getCause();
 		}
-		return cause.getMessage() == null ? cause.getClass().getSimpleName() : cause.getMessage();
+		return cause;
 	}
 
 	@Nullable
@@ -132,8 +161,8 @@ public final class EuroEconomyBridge {
 			final Api resolvedApi = new Api(
 				apiClass.getMethod("isAvailable"),
 				apiClass.getMethod("getBalance", UUID.class),
-				apiClass.getMethod("withdraw", UUID.class, int.class, String.class, String.class),
-				apiClass.getMethod("deposit", UUID.class, int.class, String.class, String.class)
+				apiClass.getMethod("withdraw", UUID.class, int.class, String.class, String.class, String.class),
+				apiClass.getMethod("deposit", UUID.class, int.class, String.class, String.class, String.class)
 			);
 			MTR.LOGGER.info("Ticket machines take Euro from Euro Economy (API version {})", version);
 			return resolvedApi;

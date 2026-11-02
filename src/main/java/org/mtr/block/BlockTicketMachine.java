@@ -3,6 +3,7 @@ package org.mtr.block;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
@@ -26,9 +27,8 @@ public class BlockTicketMachine extends BlockDirectionalDoubleBlockBase {
 	@Override
 	protected InteractionResult useWithoutItem(BlockState state, Level world, BlockPos pos, Player player, BlockHitResult hit) {
 		final MinecraftServer minecraftServer = world.getServer();
-		if (!world.isClientSide() && minecraftServer != null) {
-			// The screen shows the bank balance too, so it opens once the Euro Economy answers
-			PacketOpenTicketMachineScreen.send(minecraftServer, player.getUUID(), world, player.getGameProfile().getName(), false);
+		if (!world.isClientSide() && minecraftServer != null && player instanceof ServerPlayer serverPlayer) {
+			PacketOpenTicketMachineScreen.open(minecraftServer, serverPlayer);
 		}
 		return InteractionResult.SUCCESS;
 	}

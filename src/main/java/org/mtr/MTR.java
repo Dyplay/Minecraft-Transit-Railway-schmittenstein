@@ -32,6 +32,7 @@ import org.mtr.core.servlet.Webserver;
 import org.mtr.core.tool.Utilities;
 import org.mtr.data.ArrivalsCacheServer;
 import org.mtr.data.RailActionModule;
+import org.mtr.data.TransitCardPayments;
 import org.mtr.generated.lang.TranslationProvider;
 import org.mtr.libraries.com.google.gson.JsonElement;
 import org.mtr.libraries.com.google.gson.JsonParser;
@@ -242,6 +243,8 @@ public final class MTR {
 				final ServerPlayer serverPlayerEntity = minecraftServer.getPlayerList().getPlayer(uuid);
 				return serverPlayerEntity == null ? "" : serverPlayerEntity.getName().getString();
 			};
+
+			TransitCardPayments.onServerStarted(minecraftServer);
 		});
 
 		EventRegistryServer.registerServerStopping(minecraftServer -> {
@@ -250,6 +253,7 @@ public final class MTR {
 			}
 			serverPort = 0;
 			RIDING_PLAYERS.clear();
+			TransitCardPayments.onServerStopping();
 		});
 
 		EventRegistryServer.registerStartServerTick(() -> {
@@ -273,6 +277,7 @@ public final class MTR {
 			}
 
 			RIDING_PLAYERS.values().forEach(Runnable::run);
+			TransitCardPayments.tick();
 		});
 
 		EventRegistryServer.registerEndWorldTick(serverWorld -> {
