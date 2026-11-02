@@ -17,18 +17,6 @@
 		},
 		"forceShutDownStrayThreads": {
 			"type": "boolean"
-		},
-		"baseFareCents": {
-			"type": "integer",
-			"default": 200
-		},
-		"zoneFareCents": {
-			"type": "integer",
-			"default": 100
-		},
-		"fareEvasionFineCents": {
-			"type": "integer",
-			"default": 50000
 		}
 	}
 }

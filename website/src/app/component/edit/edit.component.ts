@@ -1,18 +1,20 @@
 import {Component, inject} from "@angular/core";
+
 import {MatButtonModule} from "@angular/material/button";
 import {MatIconModule} from "@angular/material/icon";
-import {DataService} from "../../service/data.service";
 import {MatInputModule} from "@angular/material/input";
 import {MatExpansionModule} from "@angular/material/expansion";
 import {MatTooltipModule} from "@angular/material/tooltip";
 import {MatDialog} from "@angular/material/dialog";
 import {MatSelectModule} from "@angular/material/select";
-import {AccordionComponent} from "../accordion/accordion.component";
+
+import {DataService} from "../../service/data.service";
 import {FormatIconPipe} from "../../pipe/formatIconPipe";
-import {ManageResourcesDialog} from "../manage-resources/manage-resources.dialog";
-import {EditVehiclePropertiesDialog} from "../edit-vehicle-properties/edit-vehicle-properties.dialog";
 import {FormatFileNamePipe} from "../../pipe/formatFileNamePipe";
 import {FormatStringListPipe} from "../../pipe/formatStringListPipe";
+import {AccordionComponent} from "../accordion/accordion.component";
+import {ManageResourcesDialog} from "../manage-resources/manage-resources.dialog";
+import {EditVehiclePropertiesDialog} from "../edit-vehicle-properties/edit-vehicle-properties.dialog";
 import {EditVehicleModelPropertiesDialog} from "../edit-vehicle-model-properties/edit-vehicle-model-properties.dialog";
 import {EditVehicleModelPartsDialog} from "../edit-vehicle-model-parts/edit-vehicle-model-parts.dialog";
 import {VehicleResourceWrapperDTO} from "../../entity/generated/vehicleResourceWrapper";
@@ -82,7 +84,7 @@ export class EditComponent {
 				title: "Models",
 				addText: "Add Model",
 				deleteText: "Delete Model",
-				fileExtensions: ["bbmodel", "obj", "mqo", "mqoz", "mtl"],
+				fileExtensions: ["bbmodel", "obj", "mtl"],
 				listCustomSupplier: () => this.dataService.models().map(modelWrapper => modelWrapper.id),
 				listMinecraftSupplier: () => this.dataService.minecraftModelResources().map(minecraftModelResource => minecraftModelResource.modelResource),
 			},

@@ -1,8 +1,9 @@
-## Minecraft Transit Railway 4.0.0
+# Minecraft Transit Railway 4.0.0
 
-_Minecraft Transit Railway_ is a [Minecraft mod](https://minecraft.wiki/w/Mods) that allows you to build your own transport network with automated trains, boats, cable cars, and planes!
+_Minecraft Transit Railway_ is a [Minecraft mod](https://minecraft.wiki/w/Mods) that lets you build your own transport network with automated trains, boats, cable cars, and planes.
 
-Version 4.0.0 is a complete rewrite from scratch. The vehicle simulation code has been separated from the Minecraft instance, greatly reducing lag on Minecraft servers.
+Version 4.0.0 is a complete rewrite from scratch.
+The vehicle simulation code is separated from the Minecraft instance, which greatly reduces lag on Minecraft servers.
 
 ## Major Features in 4.0.0
 
@@ -15,84 +16,117 @@ Version 4.0.0 is a complete rewrite from scratch. The vehicle simulation code ha
 - New online system map and OneBusAway integration
 - Client-side FPS improvements and server-side TPS improvements
 
-[See these features in detail.](https://www.youtube.com/playlist?list=PLp0jZgheSlXuQCXu9UynrKuBnq2Ef_TSI)
+[See these features in detail](https://www.youtube.com/playlist?list=PLp0jZgheSlXuQCXu9UynrKuBnq2Ef_TSI).
 
-[![Video Trailer](https://github.com/jonafanho/Minecraft-Transit-Railway/blob/master/images/footer/video-preview.png)](https://www.youtube.com/watch?v=1cZfU7t4cAk)
+[![Video Trailer](images/footer/video-preview.png)](https://www.youtube.com/watch?v=1cZfU7t4cAk)
 
-Please report any issues or bugs you find; that would be greatly appreciated! Refer to the [todo list](https://github.com/jonafanho/Minecraft-Transit-Railway/projects/2) to see currently known issues.
-
-## Euro Economy fares (this fork)
-
-Ticket machines no longer take emeralds. Fares are paid from a **transit card** that players load with Euro from the [Euro Economy](https://github.com/Dyplay/money-mod-v2) bank (its `neoforge-mod`):
-
-- **Ticket machine:** shows the card and bank balances. "Add Value" loads €1 to €500 from the bank onto the card; "Refund" pays what is left on the card back into the bank.
-- **Ticket barriers and processors:** work as before, charging the card in Euro. Entering needs a card balance of €0 or more; a journey the card cannot cover leaves it negative until it is topped up.
-- **Fares** are set in `config/mtr.json` under `server`, in Euro cents: `baseFareCents` (default `200`, €2), `zoneFareCents` per zone crossed (default `100`, €1) and `fareEvasionFineCents` (default `50000`, €500). Creative-mode players pay half.
-- The card balance is kept in the scoreboard objective `mtr_card_cents`. Old emerald-bought balances (`mtr_balance`) are not carried over, since they were never paid for in Euro.
-
-MTR finds the economy at runtime (`org.mtr.mod.data.EuroEconomyBridge`, by reflection on `com.dyplay.euroeconomy.neoforge.api.EuroEconomyApi`), so it still loads without it - ticket machines then say the bank is unavailable. The economy only runs on a dedicated server, so in singleplayer the ticket machines are unavailable too. Top-ups and refunds are filed in the Euro Economy ledger as `TRANSIT_CARD_TOPUP` and `TRANSIT_CARD_REFUND`.
-
-The Euro Economy mod targets NeoForge 1.21.1, while this code base currently builds for Minecraft 1.16.5-1.20.4 (Fabric and Forge), so the two only run together once MTR is ported to NeoForge 1.21.1.
+Please report any issues or bugs you find; it is greatly appreciated.
+Refer to the [to-do list](https://github.com/Minecraft-Transit-Railway/Minecraft-Transit-Railway/projects/2) to see currently known issues.
 
 ## Downloads and Installation
 
-Head over to the [Modrinth page](https://modrinth.com/mod/minecraft-transit-railway) to download the mod or to see the project information.
+Visit the [Modrinth page](https://modrinth.com/mod/minecraft-transit-railway) to download the mod and view project information.
 
 ## Guide
 
-There is a [new wiki](https://wiki.minecrafttransitrailway.com/start) for the mod. Take a look.
+There is a [new wiki](https://wiki.minecrafttransitrailway.com/start) for the mod.
 
-## Recommended Addons
+## Documentation
+
+- [API](docs/API.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Build](docs/BUILD.md)
+- [Migrations](docs/MIGRATIONS.md)
+- [Performance](docs/PERFORMANCE.md)
+- [Pending work and progress log](docs/PENDING.md)
+- [Runtime Model Loading and Rendering Pipeline](docs/RENDERING_PIPELINE.md)
+- [Running and Testing](docs/RUNNING.md)
+- [Schema](docs/SCHEMA.md)
+
+## Recommended Addons and Resource Packs
 
 - [MTR London Underground Addon](https://modrinth.com/mod/the-tube)
 - [Joban Client Mod](https://modrinth.com/mod/jcm)
 - [Station Decoration](https://modrinth.com/mod/station-decoration)
 - [Russian Metro Addon](https://modrinth.com/mod/russian-metro-addon)
+- [Tianjin Metro](https://modrinth.com/mod/tianjin-metro)
+
+For a full list, check out [this site](https://addons.minecrafttransitrailway.com/).
 
 ## Contributing
 
 ### Help Translate the Mod!
 
-The [Crowdin site for the Minecraft Transit Railway mod](https://crwd.in/minecraft-transit-railway) is available!
+The [Crowdin site for Minecraft Transit Railway](https://crowdin.com/project/minecraft-transit-railway) is available.
 
-Crowdin is a cloud-based platform for translators to contribute to a project. With your help, we can translate the mod into many different languages. You may create a free account to start translating.
+Crowdin is a cloud-based platform where translators can contribute to the project.
+With your help, we can translate the mod into many different languages.
+You can create a free account to start translating.
 
 [![Crowdin](https://badges.crowdin.net/minecraft-transit-railway/localized.svg)](https://crowdin.com/project/minecraft-transit-railway)
 
 ### Adding Features
 
 1. Fork this project
-2. On your fork, create a new branch based on the development version branch
+2. In your fork, create a new branch based on the development version branch
 3. Commit your changes to the new branch
-4. Make a Pull Request to merge your branch into the development version of this repository
+4. Open a Pull Request to merge your branch into the development version of this repository
+
+> Please be sure to [sign all your GitHub commits](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits)!
 
 ### Building
 
-To build the mod, run the following commands in the root directory of the project:
+To build the mod, this project uses **Stonecutter** for managing multi-platform (Fabric + NeoForge) and multi-version builds.
 
-```gradle
-gradlew setupFiles -PminecraftVersion="<minecraft version>"
-gradlew build -PminecraftVersion="<minecraft version>"
+The build resolves `org.mtr:transport-simulation-core:+` from GitHub Packages. For local development, create a GitHub [personal access token (classic)](https://github.com/settings/tokens) with at least the `read:packages` scope, then add your credentials to your Gradle user-home properties file:
+
+`C:\Users\<you>\.gradle\gradle.properties`
+
+```properties
+gpr.user=<your-github-username>
+gpr.key=<your-personal-access-token>
 ```
 
-The mod jar file should be generated in the following directory:
+As an alternative, Gradle will also use the `GITHUB_TOKEN` environment variable when it is set.
+
+From the repository root:
+
+```powershell
+# Setup files (one-time)
+.\gradlew.bat setupFiles -PcrowdinApiKey="<key>" -PpatreonApiKey="<key>"
+
+# Set active version and build Fabric
+.\gradlew.bat "Set active project to 1.21.4-fabric"
+.\gradlew.bat 1.21.4-fabric:build
+
+# Set active version and build NeoForge
+.\gradlew.bat "Set active project to 1.21.4-neoforge"
+.\gradlew.bat 1.21.4-neoforge:build
+```
+
+The mod JAR files should be generated in the following directory:
 
 ```
-<root>/build/release/MTR-<fabric|forge>-<mod version>+<minecraft version>.jar
+<root>/build/release/MTR-<fabric|neoforge>-<mod_version>+<minecraft_version>.jar
 ```
 
-## License
+For full build instructions, see [docs/BUILD.md](docs/BUILD.md).
 
-This project is licensed under the [MIT License](https://opensource.org/licenses/MIT). All [Noto fonts](http://www.google.com/get/noto/), bundled with this mod, are licensed under the [Open Font License](http://scripts.sil.org/OFL).
+## Licence
+
+This project is licensed under the [MIT License](https://opensource.org/licenses/MIT). All fonts bundled with this mod are licensed under the [Open Font License](https://openfontlicense.org/).
+
+- [Noto](https://fonts.google.com/noto)
+- [正風毛筆字體](https://github.com/max32002/masafont)
 
 ## Questions? Comments? Complaints?
 
 Let's connect.
 
-<a href="https://discord.gg/PVZ2nfUaTW" target="_blank"><img src="https://github.com/jonafanho/Minecraft-Transit-Railway/blob/master/images/footer/discord.png" alt="Discord" width=64></a>
+<a href="https://discord.gg/PVZ2nfUaTW" target="_blank"><img src="https://github.com/Minecraft-Transit-Railway/Minecraft-Transit-Railway/blob/master/images/footer/discord.png" alt="Discord" width=64></a>
 &nbsp;
-<a href="https://www.linkedin.com/in/jonathanho33" target="_blank"><img src="https://github.com/jonafanho/Minecraft-Transit-Railway/blob/master/images/footer/linked_in.png" alt="LinkedIn" width=64></a>
+<a href="https://www.linkedin.com/in/jonathanho33" target="_blank"><img src="https://github.com/Minecraft-Transit-Railway/Minecraft-Transit-Railway/blob/master/images/footer/linked_in.png" alt="LinkedIn" width=64></a>
 &nbsp;
-<a href="mailto:jonho.minecraft@gmail.com" target="_blank"><img src="https://github.com/jonafanho/Minecraft-Transit-Railway/blob/master/images/footer/email.png" alt="Email" width=64></a>
+<a href="mailto:jonho.minecraft@gmail.com" target="_blank"><img src="https://github.com/Minecraft-Transit-Railway/Minecraft-Transit-Railway/blob/master/images/footer/email.png" alt="Email" width=64></a>
 &nbsp;
-<a href="https://www.patreon.com/minecraft_transit_railway" target="_blank"><img src="https://github.com/jonafanho/Minecraft-Transit-Railway/blob/master/images/footer/patreon.png" alt="Patreon" width=64></a>
+<a href="https://www.patreon.com/minecraft_transit_railway" target="_blank"><img src="https://github.com/Minecraft-Transit-Railway/Minecraft-Transit-Railway/blob/master/images/footer/patreon.png" alt="Patreon" width=64></a>

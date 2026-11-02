@@ -1,11 +1,13 @@
 import {Component, inject} from "@angular/core";
+
 import {MAT_DIALOG_DATA, MatDialogModule, MatDialogRef} from "@angular/material/dialog";
 import {MatButtonModule} from "@angular/material/button";
 import {MatIconModule} from "@angular/material/icon";
-import {UploaderComponent} from "../uploader/uploader.component";
 import {MatTooltipModule} from "@angular/material/tooltip";
 import {MatExpansionModule} from "@angular/material/expansion";
+
 import {DataService} from "../../service/data.service";
+import {UploaderComponent} from "../uploader/uploader.component";
 
 @Component({
 	imports: [
@@ -41,10 +43,9 @@ export class ManageResourcesDialog {
 		const matchingPairsObj: string[] = [];
 		const matchingPairsMtl: string[] = [];
 		fileNames.forEach(([fileName, fileExtension]) => {
-			const lowerCaseFileExtension = fileExtension.toLowerCase();
-			if (lowerCaseFileExtension === "obj") {
+			if (fileExtension === "obj") {
 				matchingPairsObj.push(fileName);
-			} else if (lowerCaseFileExtension === "mtl") {
+			} else if (fileExtension === "mtl") {
 				matchingPairsMtl.push(fileName);
 			}
 		});
