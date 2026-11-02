@@ -85,8 +85,17 @@ public final class ClientPacketHelper {
 		}
 	}
 
-	public static void openTicketMachineScreen(int balance) {
-		openScreen(new TicketMachineScreen(balance), screen -> screen instanceof TicketMachineScreen);
+	/**
+	 * Opens the ticket machine screen, or updates the one already open with fresh balances.
+	 *
+	 * @param refreshOnly only update a ticket machine screen that is already open
+	 */
+	public static void openTicketMachineScreen(int cardBalance, boolean bankAvailable, int bankBalance, String bankError, boolean refreshOnly) {
+		if (Minecraft.getInstance().screen instanceof TicketMachineScreen ticketMachineScreen) {
+			ticketMachineScreen.setBalances(cardBalance, bankAvailable, bankBalance, bankError);
+		} else if (!refreshOnly) {
+			openScreen(new TicketMachineScreen(cardBalance, bankAvailable, bankBalance, bankError), screen -> screen instanceof TicketMachineScreen);
+		}
 	}
 
 	private static void openScreen(Screen screen, Predicate<Screen> isInstance) {

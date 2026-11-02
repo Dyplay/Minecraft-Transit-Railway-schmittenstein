@@ -128,6 +128,7 @@ public final class MTR {
 		RegistryServer.registerPacket(PacketOpenLiftCustomizationScreen.class, PacketOpenLiftCustomizationScreen::new);
 		RegistryServer.registerPacket(PacketOpenTicketMachineScreen.class, PacketOpenTicketMachineScreen::new);
 		RegistryServer.registerPacket(PacketPressLiftButton.class, PacketPressLiftButton::new);
+		RegistryServer.registerPacket(PacketRefundBalance.class, PacketRefundBalance::new);
 		RegistryServer.registerPacket(PacketRequestData.class, PacketRequestData::new);
 		RegistryServer.registerPacket(PacketSetRouteIdHasDisabledAnnouncements.class, PacketSetRouteIdHasDisabledAnnouncements::new);
 		RegistryServer.registerPacket(PacketTurnOnBlockEntity.class, PacketTurnOnBlockEntity::new);

@@ -5,6 +5,19 @@ _Minecraft Transit Railway_ is a [Minecraft mod](https://minecraft.wiki/w/Mods) 
 Version 4.0.0 is a complete rewrite from scratch.
 The vehicle simulation code is separated from the Minecraft instance, which greatly reduces lag on Minecraft servers.
 
+## This fork: NeoForge 1.21.1 with Euro Economy fares
+
+This fork tracks upstream's `stonecutter` branch (4.1.0 beta), which builds for **NeoForge 1.21.1** (and NeoForge 1.21.4, Fabric 1.21.1 and 1.21.4). For a NeoForge 1.21.1 server, build the `1.21.1-neoforge` project; see [docs/BUILD.md](docs/BUILD.md).
+
+Ticket machines no longer take emeralds. Fares are paid from a **transit card** that players load with Euro from the [Euro Economy](https://github.com/Dyplay/money-mod-v2) bank (its NeoForge 1.21.1 `neoforge-mod`):
+
+- **Ticket machine:** shows the card and bank balances. Its buttons load €1 to €500 from the bank onto the card, and the last one pays what is left on the card back into the bank. The screen updates with the settled balances after each payment.
+- **Ticket barriers and processors:** work as before, charging the card in Euro. Entering needs a card balance of €0 or more; a journey the card cannot cover leaves it negative until it is topped up.
+- **Fares** are set in `config/mtr.json` under `server`, in Euro cents: `baseFareCents` (default `200`, €2), `zoneFareCents` per zone crossed (default `100`, €1) and `fareEvasionFineCents` (default `50000`, €500). Creative-mode players pay half.
+- The card balance is kept in the scoreboard objective `mtr_card_cents`. Old emerald-bought balances (`mtr_balance`) are not carried over, since they were never paid for in Euro.
+
+MTR finds the economy at runtime (`org.mtr.data.EuroEconomyBridge`, by reflection on `com.dyplay.euroeconomy.neoforge.api.EuroEconomyApi`), so it still loads without it; ticket machines then say the bank is unavailable. The economy only runs on a dedicated NeoForge server, so in singleplayer and on Fabric the ticket machines are unavailable too. Top-ups and refunds are filed in the Euro Economy ledger as `TRANSIT_CARD_TOPUP` and `TRANSIT_CARD_REFUND`.
+
 ## Major Features in 4.0.0
 
 - Custom train configuration

@@ -12,6 +12,7 @@ import net.minecraft.world.scores.ScoreHolder;
 import net.minecraft.world.scores.criteria.ObjectiveCriteria;
 import org.jspecify.annotations.Nullable;
 import org.mtr.MTR;
+import org.mtr.config.Config;
 import org.mtr.core.data.Station;
 import org.mtr.core.operation.NearbyAreasRequest;
 import org.mtr.core.operation.NearbyAreasResponse;
@@ -24,20 +25,22 @@ import java.util.function.Consumer;
 /**
  * Fare collection and player balance management.
  * Handles ticket barriers, balance tracking via scoreboards, zone-based fares, and fare evasion consequences.
+ * <p>
+ * Fares are paid from a transit card, loaded with Euro from the Euro Economy bank at ticket machines (see
+ * {@link EuroEconomyBridge}). The card balance lives in a scoreboard objective, in Euro cents. Emeralds are no longer
+ * taken. The old emerald-bought balance ({@code mtr_balance}) is left alone and ignored: it was never paid for in Euro,
+ * so it is not carried over onto the card, where it could be refunded into the bank.
  */
 public class TicketSystem {
 
-	public static final String BALANCE_OBJECTIVE = "mtr_balance";
-	public static final String BALANCE_OBJECTIVE_TITLE = "Balance";
+	public static final String BALANCE_OBJECTIVE = "mtr_card_cents";
+	public static final String BALANCE_OBJECTIVE_TITLE = "Transit Card (cents)";
 	private static final String ENTRY_ZONE_1_OBJECTIVE = "mtr_entry_zone_1";
 	private static final String ENTRY_ZONE_1_TITLE = "Entry Zone 1";
 	private static final String ENTRY_ZONE_2_OBJECTIVE = "mtr_entry_zone_2";
 	private static final String ENTRY_ZONE_2_TITLE = "Entry Zone 2";
 	private static final String ENTRY_ZONE_3_OBJECTIVE = "mtr_entry_zone_3";
 	private static final String ENTRY_ZONE_3_TITLE = "Entry Zone 3";
-	private static final int BASE_FARE = 2;
-	private static final int ZONE_FARE = 1;
-	private static final int EVASION_FINE = 500;
 
 	public static void passThrough(Level world, BlockPos blockPos, Player player, boolean isEntrance, boolean isExit, SoundEvent entrySound, SoundEvent entrySoundConcessionary, SoundEvent exitSound, SoundEvent exitSoundConcessionary, @Nullable SoundEvent failSound, boolean remindIfNoRecord, Consumer<EnumTicketBarrierOpen> callback) {
 		MTR.sendMessageC2S(OperationProcessor.NEARBY_STATIONS, world.getServer(), world, new NearbyAreasRequest<>(MTR.blockPosToPosition(blockPos), 0), nearbyAreasResponse -> {
@@ -76,17 +79,35 @@ public class TicketSystem {
 		}, NearbyAreasResponse.class);
 	}
 
+	/**
+	 * The player's transit card balance in Euro cents. Negative after a journey the card could not cover.
+	 */
 	public static int getBalance(Level world, Player player) {
-		return getPlayerScore(world, player, BALANCE_OBJECTIVE, BALANCE_OBJECTIVE_TITLE);
+		return getBalance(world, player.getGameProfile().getName());
 	}
 
-	public static void addBalance(Level world, Player player, int amount) {
-		incrementPlayerScore(world, player, BALANCE_OBJECTIVE, BALANCE_OBJECTIVE_TITLE, amount);
+	/**
+	 * By name, for payments that settle after the player may have logged out (the scoreboard is keyed by name).
+	 */
+	public static int getBalance(Level world, String playerName) {
+		return getPlayerScore(world, playerName, BALANCE_OBJECTIVE, BALANCE_OBJECTIVE_TITLE);
+	}
+
+	public static void addBalance(Level world, Player player, int cents) {
+		addBalance(world, player.getGameProfile().getName(), cents);
+	}
+
+	public static void addBalance(Level world, String playerName, int cents) {
+		incrementPlayerScore(world, playerName, BALANCE_OBJECTIVE, BALANCE_OBJECTIVE_TITLE, cents);
 	}
 
 	private static int getPlayerScore(Level world, Player player, String objective, String title) {
+		return getPlayerScore(world, player.getGameProfile().getName(), objective, title);
+	}
+
+	private static int getPlayerScore(Level world, String playerName, String objective, String title) {
 		final Objective scoreboardObjective = getOrCreateScoreboardObjective(world, objective, title);
-		return scoreboardObjective == null ? 0 : world.getScoreboard().getOrCreatePlayerScore(ScoreHolder.forNameOnly(player.getGameProfile().getName()), scoreboardObjective).get();
+		return scoreboardObjective == null ? 0 : world.getScoreboard().getOrCreatePlayerScore(ScoreHolder.forNameOnly(playerName), scoreboardObjective).get();
 	}
 
 	private static void setPlayerScore(Level world, Player player, String objective, String title, int value) {
@@ -97,9 +118,13 @@ public class TicketSystem {
 	}
 
 	private static void incrementPlayerScore(Level world, Player player, String objective, String title, int value) {
+		incrementPlayerScore(world, player.getGameProfile().getName(), objective, title, value);
+	}
+
+	private static void incrementPlayerScore(Level world, String playerName, String objective, String title, int value) {
 		final Objective scoreboardObjective = getOrCreateScoreboardObjective(world, objective, title);
 		if (scoreboardObjective != null) {
-			world.getScoreboard().getOrCreatePlayerScore(ScoreHolder.forNameOnly(player.getGameProfile().getName()), scoreboardObjective).add(value);
+			world.getScoreboard().getOrCreatePlayerScore(ScoreHolder.forNameOnly(playerName), scoreboardObjective).add(value);
 		}
 	}
 
@@ -125,7 +150,7 @@ public class TicketSystem {
 				setPlayerScore(world, player, ENTRY_ZONE_1_OBJECTIVE, ENTRY_ZONE_1_TITLE, 0);
 				setPlayerScore(world, player, ENTRY_ZONE_2_OBJECTIVE, ENTRY_ZONE_2_TITLE, 0);
 				setPlayerScore(world, player, ENTRY_ZONE_3_OBJECTIVE, ENTRY_ZONE_3_TITLE, 0);
-				incrementPlayerScore(world, player, BALANCE_OBJECTIVE, BALANCE_OBJECTIVE_TITLE, -EVASION_FINE);
+				incrementPlayerScore(world, player, BALANCE_OBJECTIVE, BALANCE_OBJECTIVE_TITLE, -Config.getServer().getFareEvasionFineCents());
 			}
 		}
 
@@ -135,10 +160,10 @@ public class TicketSystem {
 			setPlayerScore(world, player, ENTRY_ZONE_1_OBJECTIVE, ENTRY_ZONE_1_TITLE, encodeZone((int) station.getZone1()));
 			setPlayerScore(world, player, ENTRY_ZONE_2_OBJECTIVE, ENTRY_ZONE_2_TITLE, encodeZone((int) station.getZone2()));
 			setPlayerScore(world, player, ENTRY_ZONE_3_OBJECTIVE, ENTRY_ZONE_3_TITLE, encodeZone((int) station.getZone3()));
-			player.displayClientMessage(TranslationProvider.GUI_MTR_ENTER_BARRIER.getText(formatStationName(station), balance), true);
+			player.displayClientMessage(TranslationProvider.GUI_MTR_ENTER_BARRIER_CARD.getText(formatStationName(station), EuroEconomyBridge.format(balance)), true);
 			return true;
 		} else {
-			player.displayClientMessage(TranslationProvider.GUI_MTR_INSUFFICIENT_BALANCE.getText(balance), true);
+			player.displayClientMessage(TranslationProvider.GUI_MTR_INSUFFICIENT_CARD_BALANCE.getText(EuroEconomyBridge.format(balance)), true);
 			return false;
 		}
 	}
@@ -153,14 +178,16 @@ public class TicketSystem {
 			player.displayClientMessage(TranslationProvider.GUI_MTR_ALREADY_EXITED.getText(), true);
 			return false;
 		} else {
-			final long fare = BASE_FARE + ZONE_FARE * (Math.abs(station.getZone1() - decodeZone(entryZone1)) + Math.abs(station.getZone2() - decodeZone(entryZone2)) + Math.abs(station.getZone3() - decodeZone(entryZone3)));
-			final long finalFare = entered ? isConcessionary(player) ? (long) Math.ceil(fare / 2F) : fare : EVASION_FINE;
+			final long zonesCrossed = Math.abs(station.getZone1() - decodeZone(entryZone1)) + Math.abs(station.getZone2() - decodeZone(entryZone2)) + Math.abs(station.getZone3() - decodeZone(entryZone3));
+			final long fare = Config.getServer().getBaseFareCents() + (long) Config.getServer().getZoneFareCents() * zonesCrossed;
+			// Capped so a journey across absurd zone numbers cannot overflow the card's int score
+			final long finalFare = Math.min(entered ? isConcessionary(player) ? (fare + 1) / 2 : fare : Config.getServer().getFareEvasionFineCents(), Integer.MAX_VALUE / 2);
 			setPlayerScore(world, player, ENTRY_ZONE_1_OBJECTIVE, ENTRY_ZONE_1_TITLE, 0);
 			setPlayerScore(world, player, ENTRY_ZONE_2_OBJECTIVE, ENTRY_ZONE_2_TITLE, 0);
 			setPlayerScore(world, player, ENTRY_ZONE_3_OBJECTIVE, ENTRY_ZONE_3_TITLE, 0);
 			incrementPlayerScore(world, player, BALANCE_OBJECTIVE, BALANCE_OBJECTIVE_TITLE, (int) -finalFare);
 			final int balance = getPlayerScore(world, player, BALANCE_OBJECTIVE, BALANCE_OBJECTIVE_TITLE);
-			player.displayClientMessage(TranslationProvider.GUI_MTR_EXIT_BARRIER.getText(formatStationName(station), finalFare, balance), true);
+			player.displayClientMessage(TranslationProvider.GUI_MTR_EXIT_BARRIER_CARD.getText(formatStationName(station), EuroEconomyBridge.format(finalFare), EuroEconomyBridge.format(balance)), true);
 			return true;
 		}
 	}
