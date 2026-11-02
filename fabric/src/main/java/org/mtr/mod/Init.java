@@ -104,6 +104,7 @@ public final class Init implements Utilities {
 		REGISTRY.registerPacket(PacketOpenPIDSConfigScreen.class, PacketOpenPIDSConfigScreen::new);
 		REGISTRY.registerPacket(PacketOpenTicketMachineScreen.class, PacketOpenTicketMachineScreen::new);
 		REGISTRY.registerPacket(PacketPressLiftButton.class, PacketPressLiftButton::new);
+		REGISTRY.registerPacket(PacketRefundBalance.class, PacketRefundBalance::new);
 		REGISTRY.registerPacket(PacketRequestData.class, PacketRequestData::new);
 		REGISTRY.registerPacket(PacketSetRouteIdHasDisabledAnnouncements.class, PacketSetRouteIdHasDisabledAnnouncements::new);
 		REGISTRY.registerPacket(PacketTurnOnBlockEntity.class, PacketTurnOnBlockEntity::new);

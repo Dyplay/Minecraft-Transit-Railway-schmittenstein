@@ -21,6 +21,19 @@ Version 4.0.0 is a complete rewrite from scratch. The vehicle simulation code ha
 
 Please report any issues or bugs you find; that would be greatly appreciated! Refer to the [todo list](https://github.com/jonafanho/Minecraft-Transit-Railway/projects/2) to see currently known issues.
 
+## Euro Economy fares (this fork)
+
+Ticket machines no longer take emeralds. Fares are paid from a **transit card** that players load with Euro from the [Euro Economy](https://github.com/Dyplay/money-mod-v2) bank (its `neoforge-mod`):
+
+- **Ticket machine:** shows the card and bank balances. "Add Value" loads €1 to €500 from the bank onto the card; "Refund" pays what is left on the card back into the bank.
+- **Ticket barriers and processors:** work as before, charging the card in Euro. Entering needs a card balance of €0 or more; a journey the card cannot cover leaves it negative until it is topped up.
+- **Fares** are set in `config/mtr.json` under `server`, in Euro cents: `baseFareCents` (default `200`, €2), `zoneFareCents` per zone crossed (default `100`, €1) and `fareEvasionFineCents` (default `50000`, €500). Creative-mode players pay half.
+- The card balance is kept in the scoreboard objective `mtr_card_cents`. Old emerald-bought balances (`mtr_balance`) are not carried over, since they were never paid for in Euro.
+
+MTR finds the economy at runtime (`org.mtr.mod.data.EuroEconomyBridge`, by reflection on `com.dyplay.euroeconomy.neoforge.api.EuroEconomyApi`), so it still loads without it - ticket machines then say the bank is unavailable. The economy only runs on a dedicated server, so in singleplayer the ticket machines are unavailable too. Top-ups and refunds are filed in the Euro Economy ledger as `TRANSIT_CARD_TOPUP` and `TRANSIT_CARD_REFUND`.
+
+The Euro Economy mod targets NeoForge 1.21.1, while this code base currently builds for Minecraft 1.16.5-1.20.4 (Fabric and Forge), so the two only run together once MTR is ported to NeoForge 1.21.1.
+
 ## Downloads and Installation
 
 Head over to the [Modrinth page](https://modrinth.com/mod/minecraft-transit-railway) to download the mod or to see the project information.

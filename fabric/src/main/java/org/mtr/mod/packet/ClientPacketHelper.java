@@ -80,8 +80,8 @@ public final class ClientPacketHelper {
 		openScreen(new RailModifierScreen(railId), screenExtension -> screenExtension instanceof RailModifierScreen);
 	}
 
-	public static void openTicketMachineScreen(int balance) {
-		openScreen(new TicketMachineScreen(balance), screenExtension -> screenExtension instanceof TicketMachineScreen);
+	public static void openTicketMachineScreen(int cardBalance, boolean bankAvailable, int bankBalance, String bankError) {
+		openScreen(new TicketMachineScreen(cardBalance, bankAvailable, bankBalance, bankError), screenExtension -> screenExtension instanceof TicketMachineScreen);
 	}
 
 	private static void openScreen(ScreenExtension screenExtension, Predicate<ScreenExtension> isInstance) {
