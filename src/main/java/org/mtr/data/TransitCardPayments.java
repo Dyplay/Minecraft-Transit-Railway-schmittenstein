@@ -36,6 +36,10 @@ public final class TransitCardPayments {
 	@Nullable
 	private static MinecraftServer server;
 	private static int ticks;
+	/**
+	 * A tick already failed and was logged; stays quiet until a tick works again.
+	 */
+	private static boolean tickFailureLogged;
 
 	private static final int RETRY_INTERVAL_SECONDS = 30;
 	private static final int RETRY_INTERVAL_TICKS = RETRY_INTERVAL_SECONDS * 20;
@@ -57,17 +61,27 @@ public final class TransitCardPayments {
 	public static void onServerStarted(MinecraftServer minecraftServer) {
 		server = minecraftServer;
 		ticks = 0;
+		tickFailureLogged = false;
 		IN_FLIGHT.clear();
 		MAY_HAVE_BEEN_APPLIED.clear();
-		// A payment still pending from the last run may have reached the bank before the server stopped
-		getStore(minecraftServer).getPending().forEach(payment -> MAY_HAVE_BEEN_APPLIED.add(payment.reference()));
+		try {
+			// A payment still pending from the last run may have reached the bank before the server stopped
+			getStore(minecraftServer).getPending().forEach(payment -> MAY_HAVE_BEEN_APPLIED.add(payment.reference()));
+		} catch (RuntimeException e) {
+			// An unreadable store must not stop the server from starting; card payments fail until it is fixed
+			MTR.LOGGER.error("Could not load transit cards; ticket machine payments and fares are unavailable", e);
+		}
 	}
 
 	public static void onServerStopping() {
 		final MinecraftServer minecraftServer = server;
 		server = null;
-		if (minecraftServer != null && !getStore(minecraftServer).flush()) {
-			MTR.LOGGER.error("Transit cards could not be saved while stopping; the last saved state will be loaded next time");
+		try {
+			if (minecraftServer != null && !getStore(minecraftServer).flush()) {
+				MTR.LOGGER.error("Transit cards could not be saved while stopping; the last saved state will be loaded next time");
+			}
+		} catch (RuntimeException e) {
+			MTR.LOGGER.error("Could not save transit cards while stopping", e);
 		}
 	}
 
@@ -81,12 +95,22 @@ public final class TransitCardPayments {
 			return;
 		}
 		ticks++;
-		if (ticks % FLUSH_INTERVAL_TICKS == 0) {
-			getStore(minecraftServer).flush();
+		if (ticks % FLUSH_INTERVAL_TICKS != 0) {
+			return;
 		}
-		if (ticks % RETRY_INTERVAL_TICKS == 0 && EuroEconomyBridge.isAvailable()) {
-			for (final TransitCardStore.PendingPayment payment : getStore(minecraftServer).getPending()) {
-				send(minecraftServer, payment, false);
+		try {
+			getStore(minecraftServer).flush();
+			if (ticks % RETRY_INTERVAL_TICKS == 0 && EuroEconomyBridge.isAvailable()) {
+				for (final TransitCardStore.PendingPayment payment : getStore(minecraftServer).getPending()) {
+					send(minecraftServer, payment, false);
+				}
+			}
+			tickFailureLogged = false;
+		} catch (RuntimeException e) {
+			// Never let the card store take the server tick down (an exception here would crash the server)
+			if (!tickFailureLogged) {
+				tickFailureLogged = true;
+				MTR.LOGGER.error("Transit card upkeep failed; retrying every second", e);
 			}
 		}
 	}
