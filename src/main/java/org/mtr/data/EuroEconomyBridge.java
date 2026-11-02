@@ -36,16 +36,16 @@ public final class EuroEconomyBridge {
 	public static final String NOT_AVAILABLE = "The Euro Economy bank is not available";
 	/**
 	 * Ledger entries the economy backend files ticket machine payments under (its {@code MOD_CHARGE_TYPES} and
-	 * {@code MOD_CREDIT_TYPES}). An older backend ignores them and files plain admin removals and grants.
+	 * {@code MOD_CREDIT_TYPES}). The money mod refuses to send these payments to a backend too old to apply references.
 	 */
 	public static final String LEDGER_TYPE_TOP_UP = "TRANSIT_CARD_TOPUP";
 	public static final String LEDGER_TYPE_REFUND = "TRANSIT_CARD_REFUND";
 
 	private static final String API_CLASS = "com.dyplay.euroeconomy.neoforge.api.EuroEconomyApi";
 	/**
-	 * 2: payments carry a reference and report unknown outcomes.
+	 * 3: payments carry a reference and a retry flag, report unknown outcomes, and need a backend that applies references.
 	 */
-	private static final int REQUIRED_API_VERSION = 2;
+	private static final int REQUIRED_API_VERSION = 3;
 
 	private static boolean resolved;
 	@Nullable
@@ -84,20 +84,22 @@ public final class EuroEconomyBridge {
 	 * with what is left in the account.
 	 *
 	 * @param reference unique per payment; the bank applies it at most once, so a retry with it is safe
+	 * @param retry     an earlier attempt with this reference may have been applied (see {@link TransitCardPayments})
 	 */
-	public static CompletableFuture<Integer> withdraw(UUID player, int cents, String ledgerType, String reason, String reference) {
+	public static CompletableFuture<Integer> withdraw(UUID player, int cents, String ledgerType, String reason, String reference, boolean retry) {
 		final Api resolvedApi = getApi();
-		return resolvedApi == null ? notInstalled() : call(resolvedApi.withdraw, player, cents, ledgerType, reason, reference);
+		return resolvedApi == null ? notInstalled() : call(resolvedApi.withdraw, player, cents, ledgerType, reason, reference, retry);
 	}
 
 	/**
 	 * Pay {@code cents} into the player's bank account. Completes with the new balance.
 	 *
 	 * @param reference unique per payment; the bank applies it at most once, so a retry with it is safe
+	 * @param retry     an earlier attempt with this reference may have been applied (see {@link TransitCardPayments})
 	 */
-	public static CompletableFuture<Integer> deposit(UUID player, int cents, String ledgerType, String reason, String reference) {
+	public static CompletableFuture<Integer> deposit(UUID player, int cents, String ledgerType, String reason, String reference, boolean retry) {
 		final Api resolvedApi = getApi();
-		return resolvedApi == null ? notInstalled() : call(resolvedApi.deposit, player, cents, ledgerType, reason, reference);
+		return resolvedApi == null ? notInstalled() : call(resolvedApi.deposit, player, cents, ledgerType, reason, reference, retry);
 	}
 
 	/**
@@ -161,8 +163,8 @@ public final class EuroEconomyBridge {
 			final Api resolvedApi = new Api(
 				apiClass.getMethod("isAvailable"),
 				apiClass.getMethod("getBalance", UUID.class),
-				apiClass.getMethod("withdraw", UUID.class, int.class, String.class, String.class, String.class),
-				apiClass.getMethod("deposit", UUID.class, int.class, String.class, String.class, String.class)
+				apiClass.getMethod("withdraw", UUID.class, int.class, String.class, String.class, String.class, boolean.class),
+				apiClass.getMethod("deposit", UUID.class, int.class, String.class, String.class, String.class, boolean.class)
 			);
 			MTR.LOGGER.info("Ticket machines take Euro from Euro Economy (API version {})", version);
 			return resolvedApi;

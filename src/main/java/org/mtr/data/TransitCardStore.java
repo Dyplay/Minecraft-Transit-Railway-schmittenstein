@@ -30,6 +30,10 @@ import java.util.UUID;
  * without its refund on record, or a top-up on record without the card. Payments still pending at startup are retried
  * by {@link TransitCardPayments}; the bank applies each payment's reference at most once, so retrying is safe.
  * <p>
+ * A payment is only handed out to be sent to the bank once its pending record is on disk: if that write fails, the
+ * payment is undone and refused. Other changes (fares, settlements) that fail to write stay in memory and are written by
+ * {@link #flush}, which runs every second and when the server stops.
+ * <p>
  * Every balance saturates at plus or minus {@link #LIMIT_CENTS}, so no amount of fares or fines can wrap a card around
  * to a large positive balance. Plain Java on purpose: no Minecraft classes, so the money logic can be tested on its own.
  */
@@ -43,6 +47,10 @@ public final class TransitCardStore {
 	private final Path path;
 	private final Map<UUID, Long> balances = new HashMap<>();
 	private final Map<String, PendingPayment> pending = new LinkedHashMap<>();
+	/**
+	 * The last write failed, so the file is behind memory; {@link #flush} tries again.
+	 */
+	private boolean dirty;
 
 	private static final Logger LOGGER = LogManager.getLogger("MinecraftTransitRailway");
 	private static final String FILE_NAME = "transit_cards.txt";
@@ -141,11 +149,20 @@ public final class TransitCardStore {
 	}
 
 	/**
+	 * Writes the store if an earlier write failed.
+	 *
+	 * @return whether everything in memory is now on disk
+	 */
+	public synchronized boolean flush() {
+		return !dirty || save();
+	}
+
+	/**
 	 * Records a top-up of {@code cents} as pending. The card is only credited once the bank has taken the money
 	 * ({@link #succeed}).
 	 *
 	 * @return the payment to send to the bank, or {@code null} if another payment for the player is pending, the amount
-	 * is not positive, or the card would end up above {@link #LIMIT_CENTS}
+	 * is not positive, the card would end up above {@link #LIMIT_CENTS}, or the pending record could not be written
 	 */
 	@Nullable
 	public synchronized PendingPayment beginTopUp(UUID player, int cents) {
@@ -154,15 +171,19 @@ public final class TransitCardStore {
 		}
 		final PendingPayment payment = new PendingPayment(newReference(), player, Kind.TOP_UP, cents);
 		pending.put(payment.reference(), payment);
-		save();
+		if (!save()) {
+			// Never send a payment the store could forget: undo it
+			pending.remove(payment.reference());
+			return null;
+		}
 		return payment;
 	}
 
 	/**
 	 * Empties the card and records the refund as pending, in one write, so the same money cannot be refunded twice.
 	 *
-	 * @return the payment to send to the bank, or {@code null} if the card holds nothing or another payment for the player
-	 * is pending
+	 * @return the payment to send to the bank, or {@code null} if the card holds nothing, another payment for the player
+	 * is pending, or the emptied card and pending refund could not be written
 	 */
 	@Nullable
 	public synchronized PendingPayment beginRefund(UUID player) {
@@ -173,7 +194,12 @@ public final class TransitCardStore {
 		final PendingPayment payment = new PendingPayment(newReference(), player, Kind.REFUND, (int) cents);
 		add(player, -cents);
 		pending.put(payment.reference(), payment);
-		save();
+		if (!save()) {
+			// Never send a payment the store could forget: undo it
+			pending.remove(payment.reference());
+			add(player, cents);
+			return null;
+		}
 		return payment;
 	}
 
@@ -215,8 +241,10 @@ public final class TransitCardStore {
 
 	/**
 	 * Writes everything to a temporary file, forces it to disk, then moves it over the store file.
+	 *
+	 * @return whether it worked; if not, the store stays {@link #dirty}
 	 */
-	private void save() {
+	private boolean save() {
 		final StringBuilder stringBuilder = new StringBuilder(HEADER).append('\n');
 		balances.forEach((player, cents) -> stringBuilder.append("card ").append(player).append(' ').append(cents).append('\n'));
 		pending.values().forEach(payment -> stringBuilder.append("pending ").append(payment.reference()).append(' ').append(payment.player()).append(' ').append(payment.kind()).append(' ').append(payment.cents()).append('\n'));
@@ -236,8 +264,14 @@ public final class TransitCardStore {
 			} catch (AtomicMoveNotSupportedException e) {
 				Files.move(temporaryPath, path, StandardCopyOption.REPLACE_EXISTING);
 			}
+			dirty = false;
+			return true;
 		} catch (IOException e) {
-			LOGGER.error("Could not save transit cards to {}; card balances changed since the last save are only in memory", path, e);
+			if (!dirty) {
+				LOGGER.error("Could not save transit cards to {}; changes stay in memory and are retried every second. Card payments are refused until it works.", path, e);
+			}
+			dirty = true;
+			return false;
 		}
 	}
 

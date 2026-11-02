@@ -32,7 +32,7 @@ import java.util.function.Consumer;
  * <p>
  * Fares are paid from a transit card, loaded with Euro from the Euro Economy bank at ticket machines (see
  * {@link TransitCardPayments}). Card balances are real money, so they live in {@link TransitCardStore} (in Euro cents,
- * keyed by player UUID) rather than on the scoreboard; the entry zones stay on the scoreboard. Emeralds are no longer
+ * keyed by player UUID) rather than on the scoreboard; the entry zones stay on the scoreboard, also keyed by UUID. Emeralds are no longer
  * taken, and the old emerald-bought balance ({@code mtr_balance}) is ignored: it was never paid for in Euro.
  * <p>
  * Without the bank (singleplayer, Fabric, or the mod not installed) nobody can load a card, so barriers let everyone
@@ -128,14 +128,22 @@ public class TicketSystem {
 
 	private static int getPlayerScore(Level world, Player player, String objective, String title) {
 		final Objective scoreboardObjective = getOrCreateScoreboardObjective(world, objective, title);
-		return scoreboardObjective == null ? 0 : world.getScoreboard().getOrCreatePlayerScore(ScoreHolder.forNameOnly(player.getGameProfile().getName()), scoreboardObjective).get();
+		return scoreboardObjective == null ? 0 : world.getScoreboard().getOrCreatePlayerScore(entryHolder(player), scoreboardObjective).get();
 	}
 
 	private static void setPlayerScore(Level world, Player player, String objective, String title, int value) {
 		final Objective scoreboardObjective = getOrCreateScoreboardObjective(world, objective, title);
 		if (scoreboardObjective != null) {
-			world.getScoreboard().getOrCreatePlayerScore(ScoreHolder.forNameOnly(player.getGameProfile().getName()), scoreboardObjective).set(value);
+			world.getScoreboard().getOrCreatePlayerScore(entryHolder(player), scoreboardObjective).set(value);
 		}
+	}
+
+	/**
+	 * Entry records are kept under the player's UUID, like the card, so a name change neither fines the player for a
+	 * journey they entered under the old name nor hands the record to whoever takes the name next.
+	 */
+	private static ScoreHolder entryHolder(Player player) {
+		return ScoreHolder.forNameOnly(player.getUUID().toString());
 	}
 
 	@Nullable

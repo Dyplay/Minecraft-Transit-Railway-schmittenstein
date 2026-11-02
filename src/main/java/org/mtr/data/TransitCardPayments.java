@@ -25,6 +25,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * across restarts too, until the bank answers. The bank applies a reference at
  * most once, so a retry never moves the money twice. A player can have one payment pending at a time.
  * <p>
+ * A payment that may already have reached the bank - after an unknown outcome, or found pending at startup - is sent
+ * as a retry: the bank then only reports a refusal as definite if it looked the reference up first, so a refusal that
+ * says nothing about the earlier attempt (a wrong API key, say) keeps the payment pending instead of undoing it.
+ * <p>
  * Called on the server thread.
  */
 public final class TransitCardPayments {
@@ -35,10 +39,17 @@ public final class TransitCardPayments {
 
 	private static final int RETRY_INTERVAL_SECONDS = 30;
 	private static final int RETRY_INTERVAL_TICKS = RETRY_INTERVAL_SECONDS * 20;
+	private static final int FLUSH_INTERVAL_TICKS = 20;
+	public static final String CARD_NOT_SAVED = "The transit card could not be saved";
 	/**
 	 * References with a bank request outstanding, so a retry never overlaps the attempt before it.
 	 */
 	private static final Set<String> IN_FLIGHT = ConcurrentHashMap.newKeySet();
+	/**
+	 * References that may already have been applied by the bank: sent with an unknown outcome, or found pending at
+	 * startup.
+	 */
+	private static final Set<String> MAY_HAVE_BEEN_APPLIED = ConcurrentHashMap.newKeySet();
 
 	private TransitCardPayments() {
 	}
@@ -47,10 +58,17 @@ public final class TransitCardPayments {
 		server = minecraftServer;
 		ticks = 0;
 		IN_FLIGHT.clear();
+		MAY_HAVE_BEEN_APPLIED.clear();
+		// A payment still pending from the last run may have reached the bank before the server stopped
+		getStore(minecraftServer).getPending().forEach(payment -> MAY_HAVE_BEEN_APPLIED.add(payment.reference()));
 	}
 
 	public static void onServerStopping() {
+		final MinecraftServer minecraftServer = server;
 		server = null;
+		if (minecraftServer != null && !getStore(minecraftServer).flush()) {
+			MTR.LOGGER.error("Transit cards could not be saved while stopping; the last saved state will be loaded next time");
+		}
 	}
 
 	/**
@@ -59,11 +77,17 @@ public final class TransitCardPayments {
 	 */
 	public static void tick() {
 		final MinecraftServer minecraftServer = server;
-		if (minecraftServer == null || ++ticks % RETRY_INTERVAL_TICKS != 0 || !EuroEconomyBridge.isAvailable()) {
+		if (minecraftServer == null) {
 			return;
 		}
-		for (final TransitCardStore.PendingPayment payment : getStore(minecraftServer).getPending()) {
-			send(minecraftServer, payment, false);
+		ticks++;
+		if (ticks % FLUSH_INTERVAL_TICKS == 0) {
+			getStore(minecraftServer).flush();
+		}
+		if (ticks % RETRY_INTERVAL_TICKS == 0 && EuroEconomyBridge.isAvailable()) {
+			for (final TransitCardStore.PendingPayment payment : getStore(minecraftServer).getPending()) {
+				send(minecraftServer, payment, false);
+			}
 		}
 	}
 
@@ -93,6 +117,7 @@ public final class TransitCardPayments {
 				send(minecraftServer, payment, true);
 				return;
 			}
+			player.displayClientMessage(TranslationProvider.GUI_MTR_CARD_PAYMENT_FAILED.getText(CARD_NOT_SAVED), false);
 		}
 
 		PacketOpenTicketMachineScreen.refresh(minecraftServer, player);
@@ -117,6 +142,7 @@ public final class TransitCardPayments {
 				send(minecraftServer, payment, true);
 				return;
 			}
+			player.displayClientMessage(TranslationProvider.GUI_MTR_CARD_PAYMENT_FAILED.getText(CARD_NOT_SAVED), false);
 		}
 
 		PacketOpenTicketMachineScreen.refresh(minecraftServer, player);
@@ -128,9 +154,10 @@ public final class TransitCardPayments {
 		}
 
 		final String amount = EuroEconomyBridge.format(payment.cents());
+		final boolean retry = MAY_HAVE_BEEN_APPLIED.contains(payment.reference());
 		final CompletableFuture<Integer> future = payment.kind() == TransitCardStore.Kind.TOP_UP
-			? EuroEconomyBridge.withdraw(payment.player(), payment.cents(), EuroEconomyBridge.LEDGER_TYPE_TOP_UP, "Loaded " + amount + " onto a transit card", payment.reference())
-			: EuroEconomyBridge.deposit(payment.player(), payment.cents(), EuroEconomyBridge.LEDGER_TYPE_REFUND, "Refunded " + amount + " from a transit card", payment.reference());
+			? EuroEconomyBridge.withdraw(payment.player(), payment.cents(), EuroEconomyBridge.LEDGER_TYPE_TOP_UP, "Loaded " + amount + " onto a transit card", payment.reference(), retry)
+			: EuroEconomyBridge.deposit(payment.player(), payment.cents(), EuroEconomyBridge.LEDGER_TYPE_REFUND, "Refunded " + amount + " from a transit card", payment.reference(), retry);
 
 		future.whenComplete((bankBalance, throwable) -> minecraftServer.execute(() -> settle(minecraftServer, payment, bankBalance, throwable, firstAttempt)));
 	}
@@ -142,6 +169,7 @@ public final class TransitCardPayments {
 		final String amount = EuroEconomyBridge.format(payment.cents());
 
 		if (throwable == null) {
+			MAY_HAVE_BEEN_APPLIED.remove(payment.reference());
 			store.succeed(payment.reference());
 			if (player != null) {
 				final String bank = EuroEconomyBridge.format(bankBalance == null ? 0 : bankBalance);
@@ -152,12 +180,15 @@ public final class TransitCardPayments {
 			}
 		} else if (EuroEconomyBridge.isOutcomeUnknown(throwable)) {
 			// The money may or may not have moved: keep the payment pending, tick() sends it again with the same reference
+			MAY_HAVE_BEEN_APPLIED.add(payment.reference());
 			MTR.LOGGER.warn("Transit card {} {} for {} has an unknown outcome ({}); retrying", payment.kind(), payment.reference(), payment.player(), EuroEconomyBridge.getErrorMessage(throwable));
 			if (player != null && firstAttempt) {
 				player.displayClientMessage(TranslationProvider.GUI_MTR_CARD_PAYMENT_DELAYED.getText(), false);
 			}
 		} else {
-			// A definite refusal: nothing moved at the bank, so a refund goes back onto the card
+			// A definite refusal: nothing moved at the bank (for a retry, the bank checked the reference was never applied),
+			// so a refund goes back onto the card
+			MAY_HAVE_BEEN_APPLIED.remove(payment.reference());
 			store.refuse(payment.reference());
 			if (player != null) {
 				player.displayClientMessage(TranslationProvider.GUI_MTR_CARD_PAYMENT_FAILED.getText(EuroEconomyBridge.getErrorMessage(throwable)), false);
