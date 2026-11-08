@@ -43,6 +43,7 @@ public class RenderLifts implements IGui {
 	private static final int LIFT_DISPLAY_COLOR = 0xFFFF0000;
 	private static final float LIFT_DOOR_VALUE = 0.75F;
 	private static final float LIFT_FLOOR_PADDING = 0.25F;
+	private static final ResourceLocation DEFAULT_LIFT_TEXTURE = ResourceLocation.fromNamespaceAndPath(MTR.MOD_ID, "textures/vehicle/lift_1.png");
 
 	public static void render(long millisElapsed, Vec3 cameraShakeOffset) {
 		final Minecraft minecraftClient = Minecraft.getInstance();
@@ -174,14 +175,17 @@ public class RenderLifts implements IGui {
 
 				// Render the lift
 				final StoredMatrixTransformations storedMatrixTransformations = RenderVehicles.getStoredMatrixTransformations(offsetVector == null, renderingPositionAndRotation, 0);
-//				new ModelLift1((int) Math.round(lift.getHeight() * 2), (int) Math.round(lift.getWidth()), (int) Math.round(lift.getDepth()), lift.getIsDoubleSided()).render(
-//						storedMatrixTransformations,
-//						null,
-//						getLiftResource(lift.getStyle()).getTexture(),
-//						absolutePositionAndRotation.light,
-//						doorway1Open ? lift.getDoorValue() / LIFT_DOOR_VALUE : 0, doorway2Open ? lift.getDoorValue() / LIFT_DOOR_VALUE : 0, false,
-//						0, 1, true, true, false, true, false
-//				);
+				ModelLift1.render(
+					storedMatrixTransformations,
+					getLiftTexture(lift.getStyle()),
+					absolutePositionAndRotation.light,
+					doorway1Open ? lift.getDoorValue() / LIFT_DOOR_VALUE : 0,
+					doorway2Open ? lift.getDoorValue() / LIFT_DOOR_VALUE : 0,
+					(int) Math.round(lift.getHeight() * 2),
+					(int) Math.round(lift.getWidth()),
+					(int) Math.round(lift.getDepth()),
+					lift.getIsDoubleSided()
+				);
 
 				// Render the display inside the lift
 				for (int i = 0; i < (lift.getIsDoubleSided() ? 2 : 1); i++) {
@@ -276,6 +280,13 @@ public class RenderLifts implements IGui {
 		}
 
 		return liftResource == null ? CustomResourceLoader.getLifts().getFirst() : liftResource;
+	}
+
+	/**
+	 * The texture of the lift style, falling back to the built-in lift texture if no lift styles were loaded (rather than failing every frame).
+	 */
+	private static ResourceLocation getLiftTexture(String liftId) {
+		return CustomResourceLoader.getLifts().isEmpty() ? DEFAULT_LIFT_TEXTURE : getLiftResource(liftId).getTexture();
 	}
 
 	private static PositionAndRotation getLiftPositionAndRotation(ClientLevel clientWorld, Lift lift) {
