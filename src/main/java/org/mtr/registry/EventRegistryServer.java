@@ -17,7 +17,6 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 
 //? if neoforge {
 /*import org.mtr.neoforge.MainEventBus;
-import org.mtr.neoforge.ModEventBus;
 *///? }
 
 public final class EventRegistryServer {
@@ -138,7 +137,7 @@ public final class EventRegistryServer {
 //? }
 
 //? if neoforge {
-		/*ModEventBus.chunkLoadConsumer = consumer;
+		/*MainEventBus.chunkLoadConsumer = consumer;
 //
 *///? }
 	}
@@ -149,7 +148,7 @@ public final class EventRegistryServer {
 //? }
 
 //? if neoforge {
-		/*ModEventBus.chunkUnloadConsumer = consumer;
+		/*MainEventBus.chunkUnloadConsumer = consumer;
 //
 *///? }
 	}

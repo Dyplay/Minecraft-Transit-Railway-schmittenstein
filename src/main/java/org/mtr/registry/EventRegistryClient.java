@@ -109,7 +109,7 @@ public final class EventRegistryClient {
 //? }
 
 //? if neoforge {
-		/*ModEventBusClient.chunkLoadConsumer = consumer;
+		/*MainEventBusClient.chunkLoadConsumer = consumer;
 //
 *///? }
 	}
@@ -120,7 +120,7 @@ public final class EventRegistryClient {
 //? }
 
 //? if neoforge {
-		/*ModEventBusClient.chunkUnloadConsumer = consumer;
+		/*MainEventBusClient.chunkUnloadConsumer = consumer;
 //
 *///? }
 	}
