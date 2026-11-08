@@ -5,7 +5,7 @@ import org.mtr.core.WebserverSetup
 
 plugins {
 	id("net.fabricmc.fabric-loom-remap")
-	id("dev.kikugie.fletching-table.fabric") version "+"
+	id("dev.kikugie.fletching-table.fabric") version "0.1.0-alpha.23"
 	id("io.freefair.lombok") version "+"
 	id("com.gradleup.shadow") version "+"
 }
@@ -73,7 +73,7 @@ dependencies {
 	implementationAndShadow("org.mtr:transport-simulation-core:+")
 	implementationAndShadow("com.logisticscraft:occlusionculling:+")
 	implementationAndInclude("gg.essential:elementa:${property("dependency.elementa")}")
-	implementationAndInclude("org.jetbrains.kotlin:kotlin-stdlib:+")
+	implementationAndInclude("org.jetbrains.kotlin:kotlin-stdlib:2.4.10")
 	implementation("org.jspecify:jspecify:+")
 
 	testImplementation("org.junit.jupiter:junit-jupiter-api:5.+")

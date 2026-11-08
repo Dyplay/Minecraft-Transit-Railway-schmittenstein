@@ -5,7 +5,7 @@ import org.mtr.core.WebserverSetup
 
 plugins {
 	id("net.neoforged.moddev")
-	id("dev.kikugie.fletching-table.neoforge") version "+"
+	id("dev.kikugie.fletching-table.neoforge") version "0.1.0-alpha.23"
 	id("io.freefair.lombok") version "+"
 	id("com.gradleup.shadow") version "+"
 }
@@ -56,7 +56,7 @@ dependencies {
 	implementationAndShadow("com.logisticscraft:occlusionculling:+")
 	implementationAndShadow("gg.essential:elementa:${property("dependency.elementa")}")
 	implementationAndShadow("gg.essential:universalcraft-${property("dependency.universal_craft_minecraft")}-neoforge:${property("dependency.universal_craft")}")
-	implementationAndShadow("org.jetbrains.kotlin:kotlin-stdlib:+")
+	implementationAndShadow("org.jetbrains.kotlin:kotlin-stdlib:2.4.10")
 	implementation("org.jspecify:jspecify:+")
 
 	testImplementation("org.junit.jupiter:junit-jupiter-api:5.+")
