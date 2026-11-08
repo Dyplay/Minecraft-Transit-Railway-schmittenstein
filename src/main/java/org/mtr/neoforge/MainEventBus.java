@@ -8,10 +8,12 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.chunk.ChunkAccess;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.level.ChunkEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
@@ -36,6 +38,8 @@ public final class MainEventBus {
 	public static Consumer<ServerLevel> endWorldTickRunnable = null;
 	public static BiConsumer<MinecraftServer, ServerPlayer> playerJoinRunnable = null;
 	public static BiConsumer<MinecraftServer, ServerPlayer> playerDisconnectRunnable = null;
+	public static BiConsumer<ServerLevel, ChunkAccess> chunkLoadConsumer = null;
+	public static BiConsumer<ServerLevel, ChunkAccess> chunkUnloadConsumer = null;
 	public static Consumer<CommandDispatcher<CommandSourceStack>> commandConsumer = null;
 
 	@SubscribeEvent
@@ -106,6 +110,20 @@ public final class MainEventBus {
 	public static void playerDisconnect(PlayerEvent.PlayerLoggedOutEvent event) {
 		if (playerDisconnectRunnable != null && event.getEntity() instanceof ServerPlayer serverPlayerEntity) {
 			playerDisconnectRunnable.accept(serverPlayerEntity.server, serverPlayerEntity);
+		}
+	}
+
+	@SubscribeEvent
+	public static void chunkLoad(ChunkEvent.Load event) {
+		if (chunkLoadConsumer != null && event.getLevel() instanceof ServerLevel serverWorld) {
+			chunkLoadConsumer.accept(serverWorld, event.getChunk());
+		}
+	}
+
+	@SubscribeEvent
+	public static void chunkUnload(ChunkEvent.Unload event) {
+		if (chunkUnloadConsumer != null && event.getLevel() instanceof ServerLevel serverWorld) {
+			chunkUnloadConsumer.accept(serverWorld, event.getChunk());
 		}
 	}
 
